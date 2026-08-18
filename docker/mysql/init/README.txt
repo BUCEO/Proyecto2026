@@ -1,0 +1,1 @@
+-- Scripts .sql que pongas acá corren automáticamente la primera vez que se crea la base.

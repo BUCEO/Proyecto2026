@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esquema de Burbujas - Calidad de Software ISO 25010:2023</title>
+    
+    <!-- Tailwind CSS para el diseño -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- ECharts para el grafo de burbujas -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; 
+            color: #e2e8f0;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; 
+        }
+        
+        #chart-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Scrollbar personalizada para el modal */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+
+        /* Animación suave para el botón de guardado */
+        .btn-export:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Contenedor del Grafo -->
+    <div id="chart-container"></div>
+    
+    <!-- Instrucciones flotantes y Panel de Control -->
+    <div class="absolute top-6 left-6 bg-slate-800/80 backdrop-blur-md p-4 rounded-xl border border-slate-600 shadow-2xl w-80 z-10 flex flex-col gap-3">
+        <h1 class="text-xl font-bold text-white leading-tight">Modelo ISO/IEC 25010:2023</h1>
+        
+        <p class="text-xs text-slate-300">
+            <strong>Instrucciones:</strong> Clic en burbujas para ver definiciones, docs y herramientas IA específicas.
+        </p>
+        
+        <div class="bg-slate-900/50 p-2 rounded border border-slate-700">
+            <p class="text-xs text-amber-400 font-semibold flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
+                Clic derecho en burbujas para descartar (gris).
+            </p>
+        </div>
+
+        <!-- Botón de Exportación -->
+        <button id="btn-export" class="btn-export mt-1 w-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold py-2.5 px-4 rounded-lg shadow-lg flex justify-center items-center transition-colors">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            Guardar Selección (TXT)
+        </button>
+    </div>
+
+    <!-- Modal para las Definiciones y Herramientas -->
+    <div id="info-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex justify-center items-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[90vh]" id="modal-content">
+            
+            <!-- Cabecera del Modal -->
+            <div id="modal-header" class="px-6 py-4 bg-blue-600 text-white flex justify-between items-center shrink-0">
+                <h2 id="modal-title" class="text-2xl font-bold">Título</h2>
+                <button id="close-modal" class="text-white hover:text-gray-200 focus:outline-none transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <!-- Cuerpo del Modal (Scrollable) -->
+            <div class="p-6 text-slate-800 overflow-y-auto grow">
+                <div class="mb-6">
+                    <h3 class="text-sm uppercase tracking-wider text-slate-500 font-semibold mb-2">Definición (Contexto 2023)</h3>
+                    <p id="modal-definition" class="text-base leading-relaxed text-slate-700 bg-slate-50 p-4 rounded-lg border border-slate-200"></p>
+                </div>
+
+                <div>
+                    <h3 class="text-sm uppercase tracking-wider text-slate-500 font-semibold mb-3">Herramientas IA y Documentación Específica</h3>
+                    <div id="modal-tools" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <!-- Las herramientas se inyectarán aquí -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. DICCIONARIO DE DATOS ENRIQUECIDO (Doc Técnica e IA por cada sub-ítem)
+        const knowledgeBase = {
+            "CALIDAD DEL PRODUCTO SOFTWARE": {
+                color: "#1e293b",
+                def: "El grado en el que un producto satisface las necesidades declaradas e implícitas. Actualizado al estándar 2023, refleja cómo el software pasó de ser una 'herramienta' a ser el 'motor' de sistemas críticos (IoT, IA, Cloud), sumando 9 características en total.",
+                tools: [
+                    { name: "Doc Oficial ISO 25010:2023", url: "https://www.iso.org/standard/78176.html", tag: "Doc Técnica", desc: "La página oficial del estándar internacional ISO con el resumen del framework SQuaRE actualizado." },
+                    { name: "Claude 3 / GPT-4o", url: "https://claude.ai/", tag: "IA Generativa", desc: "Uso de LLMs avanzados para generar matrices de prueba completas, scripts automatizados y analizar requerimientos." }
+                ]
+            },
+            
+            // --- ADECUACIÓN FUNCIONAL ---
+            "Adecuación Funcional": {
+                color: "#ef4444", 
+                def: "Grado en que el producto proporciona funciones que satisfacen las necesidades explícitas e implícitas bajo condiciones específicas.",
+                tools: [
+                    { name: "Playwright", url: "https://playwright.dev/", tag: "E2E", desc: "Framework de nueva generación, ultra rápido y fiable para automatización en múltiples navegadores." },
+                    { name: "Mabl", url: "https://www.mabl.com/", tag: "IA / E2E", desc: "Testing funcional inteligente sin código (low-code) que se auto-repara (auto-healing) usando IA cuando cambia la UI." }
+                ]
+            },
+            "Completitud": { 
+                parent: "Adecuación Funcional", 
+                def: "Grado en que el conjunto de funciones cubre todas las tareas y objetivos del usuario especificados.",
+                tools: [
+                    { name: "Técnicas Caja Negra (ISTQB)", url: "https://www.istqb.org/", tag: "Doc Técnica", desc: "Documentación sobre partición de equivalencias y valores límite para garantizar que se prueban todos los escenarios." },
+                    { name: "GitHub Copilot Chat", url: "https://github.com/features/copilot", tag: "IA", desc: "Asistente IA para revisar especificaciones y sugerir casos de prueba de borde que los humanos suelen olvidar." }
+                ]
+            },
+            "Corrección": { 
+                parent: "Adecuación Funcional", 
+                def: "Grado en que el producto o sistema provee resultados precisos y correctos.",
+                tools: [
+                    { name: "Postbot (Postman AI)", url: "https://www.postman.com/product/postbot/", tag: "IA / API", desc: "IA integrada en Postman que genera automáticamente aserciones y tests para validar la corrección de respuestas API." },
+                    { name: "Jest", url: "https://jestjs.io/", tag: "Unit Testing", desc: "Framework de pruebas unitarias para garantizar que la lógica matemática y de negocio retorne el valor correcto exacto." }
+                ]
+            },
+            "Pertinencia": { 
+                parent: "Adecuación Funcional", 
+                def: "Grado en que las funciones facilitan el cumplimiento de las tareas (hace lo que debe hacer y no características inútiles).",
+                tools: [
+                    { name: "Mixpanel / Amplitude", url: "https://mixpanel.com/", tag: "Analytics", desc: "Herramientas de análisis de producto para validar si los usuarios realmente usan las funciones desarrolladas." },
+                    { name: "BDD (Cucumber)", url: "https://cucumber.io/docs/bdd/", tag: "Doc Metodología", desc: "Behavior-Driven Development asegura que el desarrollo esté guiado estrictamente por el comportamiento esperado por el negocio." }
+                ]
+            },
+            
+            // --- RENDIMIENTO ---
+            "Rendimiento": {
+                color: "#f97316", 
+                def: "Desempeño relativo a la cantidad de recursos utilizados bajo condiciones determinadas.",
+                tools: [
+                    { name: "k6 (Grafana)", url: "https://k6.io/", tag: "Estrés / Carga", desc: "Testing de rendimiento moderno escrito en Go. Permite escribir pruebas de carga en JavaScript y simular picos de tráfico." }
+                ]
+            },
+            "Comport. en el tiempo": { 
+                parent: "Rendimiento", 
+                def: "Tiempos de respuesta y procesamiento y tasas de rendimiento al realizar sus funciones.",
+                tools: [
+                    { name: "Core Web Vitals", url: "https://web.dev/articles/vitals", tag: "Doc Técnica", desc: "Métricas oficiales de Google (LCP, FID, CLS) para medir la velocidad de carga y respuesta percibida por el usuario." },
+                    { name: "Lighthouse CI", url: "https://github.com/GoogleChrome/lighthouse-ci", tag: "Automatización", desc: "Auditoría de rendimiento de tiempos de respuesta integrada en el pipeline de despliegue." }
+                ]
+            },
+            "Utilización de Recursos": { 
+                parent: "Rendimiento", 
+                def: "Cantidades y tipos de recursos utilizados cuando el software realiza su función (CPU, RAM, Red).",
+                tools: [
+                    { name: "AWS Compute Optimizer", url: "https://aws.amazon.com/es/compute-optimizer/", tag: "AIOps", desc: "Utiliza Machine Learning para analizar métricas históricas de utilización de recursos y recomendar el hardware óptimo." },
+                    { name: "Datadog APM", url: "https://www.datadoghq.com/", tag: "Monitoreo", desc: "Trazabilidad de la memoria y CPU que consume cada microservicio en tiempo real." }
+                ]
+            },
+            "Capacidad": { 
+                parent: "Rendimiento", 
+                def: "Límites máximos de un producto o sistema (ej. máxima cantidad de usuarios concurrentes sin degradar servicio).",
+                tools: [
+                    { name: "Apache JMeter Docs", url: "https://jmeter.apache.org/usermanual/index.html", tag: "Doc Técnica", desc: "Manual oficial para configurar pruebas de estrés extremo y encontrar el punto de ruptura (Breakpoint) del servidor." },
+                    { name: "Gatling", url: "https://gatling.io/", tag: "Load Testing", desc: "Simulación de alta concurrencia diseñada para CI/CD, ideal para probar la capacidad máxima antes de colapsar." }
+                ]
+            },
+
+            // --- COMPATIBILIDAD ---
+            "Compatibilidad": {
+                color: "#eab308", 
+                def: "Grado en que un producto puede intercambiar información con otros o coexistir en el mismo entorno de hardware/software.",
+                tools: [
+                    { name: "BrowserStack", url: "https://www.browserstack.com/", tag: "Nube de Dispositivos", desc: "Granja de dispositivos reales para pruebas de compatibilidad en miles de combinaciones de SO y navegadores." }
+                ]
+            },
+            "Coexistencia": { 
+                parent: "Compatibilidad", 
+                def: "Capacidad de operar eficientemente con otros productos en un entorno común sin impactar negativamente en ellos.",
+                tools: [
+                    { name: "Docker Isolation Docs", url: "https://docs.docker.com/", tag: "Doc Técnica", desc: "Documentación sobre cómo aislar procesos y dependencias usando contenedores para garantizar que múltiples apps coexistan sin conflictos." }
+                ]
+            },
+            "Facilidad para Interoperar": { 
+                parent: "Compatibilidad", 
+                def: "Capacidad de dos o más sistemas para intercambiar información y utilizar los datos intercambiados.",
+                tools: [
+                    { name: "OpenAPI Specification", url: "https://swagger.io/specification/", tag: "Doc Técnica", desc: "El estándar mundial para definir contratos de APIs, asegurando que los sistemas B2B puedan entenderse." },
+                    { name: "Pact", url: "https://pact.io/", tag: "Testing de Contratos", desc: "Herramienta para 'Contract Testing'. Verifica que las aplicaciones que se comunican por API cumplan los formatos acordados." }
+                ]
+            },
+
+            // --- CAPACIDAD DE INTERACCIÓN (EX USABILIDAD) ---
+            "Cap. de Interacción": {
+                color: "#22c55e", 
+                def: "Reemplaza a 'Usabilidad'. Se amplía más allá del humano, incluyendo interfaces de sistemas (M2M) y cómo interactúan en ecosistemas amplios.",
+                tools: [
+                    { name: "Applitools Eyes", url: "https://applitools.com/", tag: "IA Visual", desc: "Usa IA para validar la interfaz de usuario (Visual Regression Testing), detectando cambios de píxeles y anomalías visuales." }
+                ]
+            },
+            "Inteligibilidad": { 
+                parent: "Cap. de Interacción", 
+                def: "Reconocimiento de la adecuación. Grado en que el usuario entiende si el software es apropiado y funcional para su necesidad.",
+                tools: [
+                    { name: "Heurísticas de Nielsen", url: "https://www.nngroup.com/articles/ten-usability-heuristics/", tag: "Doc Técnica", desc: "Los 10 principios fundamentales para el diseño de interfaces comprensibles." }
+                ]
+            },
+            "Aprendizaje": { 
+                parent: "Cap. de Interacción", 
+                def: "Grado en el que el producto permite al usuario aprender a usarlo rápidamente.",
+                tools: [
+                    { name: "Pendo", url: "https://www.pendo.io/", tag: "Product Adoption", desc: "Plataforma para crear guías interactivas (onboarding) dentro de la app para acelerar el aprendizaje." }
+                ]
+            },
+            "Operabilidad": { 
+                parent: "Cap. de Interacción", 
+                def: "Grado en que el producto tiene atributos que lo hacen fácil de operar y controlar.",
+                tools: [
+                    { name: "Hotjar", url: "https://www.hotjar.com/", tag: "UX", desc: "Mapas de calor (Heatmaps) para ver exactamente dónde hacen clic los usuarios y si tienen dificultades operando la UI." }
+                ]
+            },
+            "Protección a errores": { 
+                parent: "Cap. de Interacción", 
+                def: "Grado en que el sistema protege a los usuarios de cometer errores (diseño a prueba de fallos).",
+                tools: [
+                    { name: "Diseño Defensivo (Doc)", url: "https://en.wikipedia.org/wiki/Defensive_design", tag: "Doc Metodología", desc: "Principios para anticipar el mal uso del usuario (ej: botones de confirmación antes de eliminar)." }
+                ]
+            },
+            "Inclusividad": { 
+                parent: "Cap. de Interacción", 
+                def: "(Nuevo) Grado en que puede ser usado eficientemente por personas de diversos orígenes y capacidades.",
+                tools: [
+                    { name: "WCAG 2.2 Guidelines", url: "https://www.w3.org/WAI/standards-guidelines/wcag/", tag: "Doc Técnica", desc: "Pautas de Accesibilidad al Contenido en la Web. Estándar obligatorio en muchos países." },
+                    { name: "axe-core", url: "https://github.com/dequelabs/axe-core", tag: "Automatización", desc: "Motor de accesibilidad líder. Se integra en CI/CD para detectar automáticamente problemas de contraste, lectores de pantalla, etc." }
+                ]
+            },
+            "Asistencia y Autodescriptividad": { 
+                parent: "Cap. de Interacción", 
+                def: "(Nuevo) Capacidad de proveer ayudas útiles, y grado en que es obvio qué interacciones están disponibles.",
+                tools: [
+                    { name: "Zendesk AI / Intercom", url: "https://www.intercom.com/ai-bot", tag: "IA / Chatbots", desc: "Chatbots impulsados por LLMs que proporcionan asistencia contextual en tiempo real dentro del software." }
+                ]
+            },
+
+            // --- FIABILIDAD ---
+            "Fiabilidad": {
+                color: "#0ea5e9", 
+                def: "Otorga mayor peso a la 'Resiliencia': no solo evitar que falle, sino la capacidad de recuperación autónoma ante fallos inevitables.",
+                tools: [
+                    { name: "Chaos Mesh", url: "https://chaos-mesh.org/", tag: "Chaos Engineering", desc: "Herramienta open-source para simular caídas de red, pod failures y estrés en clústeres de Kubernetes." }
+                ]
+            },
+            "Ausencia de Fallos": { 
+                parent: "Fiabilidad", 
+                def: "Grado en el que el sistema funciona sin errores o defectos (Faultlessness).",
+                tools: [
+                    { name: "Sentry", url: "https://sentry.io/", tag: "Observabilidad", desc: "Captura de errores en tiempo real y trazas de stack desde el frontend hasta el backend." }
+                ]
+            },
+            "Disponibilidad": { 
+                parent: "Fiabilidad", 
+                def: "Grado en que el sistema está operativo y accesible (Uptime).",
+                tools: [
+                    { name: "AWS Well-Architected: Reliability", url: "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html", tag: "Doc Técnica", desc: "Diseño de arquitecturas multi-zona para garantizar 99.99% de disponibilidad." }
+                ]
+            },
+            "Tolerancia a Fallos y Recuperación": { 
+                parent: "Fiabilidad", 
+                def: "Capacidad de operar ante fallos y de recuperar datos/estado tras una interrupción de forma autónoma (Resiliencia).",
+                tools: [
+                    { name: "Circuit Breaker Pattern", url: "https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker", tag: "Doc Arquitectura", desc: "Patrón de diseño fundamental para evitar fallos en cascada en arquitecturas de microservicios." },
+                    { name: "PagerDuty AIOps", url: "https://www.pagerduty.com/", tag: "AIOps", desc: "Usa IA para agrupar alertas, predecir caídas y automatizar playbooks de recuperación ante incidentes." }
+                ]
+            },
+
+            // --- SEGURIDAD ---
+            "Seguridad": {
+                color: "#8b5cf6", 
+                def: "Alineada con arquitecturas de 'Confianza Cero' (Zero Trust) y estrictas regulaciones de privacidad de datos.",
+                tools: [
+                    { name: "OWASP Top 10 (2021/2024)", url: "https://owasp.org/www-project-top-ten/", tag: "Doc Técnica", desc: "El documento de concientización estándar para desarrolladores sobre los riesgos de seguridad más críticos." }
+                ]
+            },
+            "Confidencialidad e Integridad": { 
+                parent: "Seguridad", 
+                def: "Asegura acceso solo a autorizados e impide la alteración de datos.",
+                tools: [
+                    { name: "Snyk Code (IA SAST)", url: "https://snyk.io/product/snyk-code/", tag: "IA / SAST", desc: "Motor de análisis semántico con IA que escanea el código fuente en tiempo real buscando inyecciones SQL y brechas de confidencialidad." }
+                ]
+            },
+            "No Repudio y Responsabilidad": { 
+                parent: "Seguridad", 
+                def: "Capacidad de demostrar acciones (trazabilidad legal) y rastreo de entes inequívocamente.",
+                tools: [
+                    { name: "Elastic Security (SIEM)", url: "https://www.elastic.co/security", tag: "SIEM", desc: "Gestión de eventos e información de seguridad para mantener logs inmutables y trazabilidad de acciones." }
+                ]
+            },
+            "Autenticidad y Resistencia": { 
+                parent: "Seguridad", 
+                def: "Probar la identidad y la capacidad de resistir/mitigar ataques maliciosos (Nuevo en 2023).",
+                tools: [
+                    { name: "Auth0 (Okta)", url: "https://auth0.com/", tag: "Identity", desc: "Plataforma de gestión de identidades que implementa MFA y mitigación de ataques de fuerza bruta." },
+                    { name: "Cloudflare WAF", url: "https://www.cloudflare.com/waf/", tag: "WAF / IA", desc: "Firewall de aplicaciones web que usa Machine Learning para identificar y bloquear botnets y ataques DDoS." }
+                ]
+            },
+
+            // --- MANTENIBILIDAD ---
+            "Mantenibilidad": {
+                color: "#d946ef", 
+                def: "Evalúa la eficacia con que se puede modificar el código en ciclos de entrega continua (Agile/DevOps).",
+                tools: [
+                    { name: "SonarQube", url: "https://www.sonarsource.com/", tag: "Análisis Estático", desc: "Plataforma líder para medir la deuda técnica y detectar Code Smells en CI/CD." }
+                ]
+            },
+            "Modularidad y Cap. Reusado": { 
+                parent: "Mantenibilidad", 
+                def: "Sistemas compuestos por componentes discretos reutilizables sin impactar al resto.",
+                tools: [
+                    { name: "Micro Frontends (Doc)", url: "https://martinfowler.com/articles/micro-frontends.html", tag: "Doc Técnica", desc: "Artículo de Martin Fowler sobre cómo llevar la modularidad extrema al desarrollo de interfaces." }
+                ]
+            },
+            "Analizabilidad y Cap. Modificar": { 
+                parent: "Mantenibilidad", 
+                def: "Facilidad para diagnosticar deficiencias y modificar sin introducir nuevos defectos (regresiones).",
+                tools: [
+                    { name: "CodiumAI", url: "https://www.codium.ai/", tag: "IA", desc: "Analiza el código a medida que lo escribes y genera tests unitarios significativos automáticamente para asegurar que los cambios no rompan nada." }
+                ]
+            },
+
+            // --- FLEXIBILIDAD (EX PORTABILIDAD) ---
+            "Flexibilidad": {
+                color: "#14b8a6", 
+                def: "Reemplaza a 'Portabilidad'. Foco en adaptabilidad y escalabilidad en entornos Cloud y contenedores.",
+                tools: [
+                    { name: "CNCF Landscape", url: "https://landscape.cncf.io/", tag: "Doc Técnica", desc: "El ecosistema oficial de Cloud Native Computing Foundation para arquitecturas flexibles." }
+                ]
+            },
+            "Adaptabilidad e Instalabilidad": { 
+                parent: "Flexibilidad", 
+                def: "Adaptación a diferentes entornos operativos y facilidad de instalación.",
+                tools: [
+                    { name: "Terraform", url: "https://www.terraform.io/", tag: "IaC", desc: "Infraestructura como código. Permite adaptar e instalar entornos completos (bases de datos, redes, servidores) con un solo script." }
+                ]
+            },
+            "Escalabilidad": { 
+                parent: "Flexibilidad", 
+                def: "(Nuevo) Capacidad de mantener el rendimiento a medida que crecen las cargas de trabajo (vital en Cloud).",
+                tools: [
+                    { name: "Kubernetes (K8s HPA)", url: "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/", tag: "Doc Técnica", desc: "Documentación sobre el Autoescalado Horizontal de Pods: cómo K8s clona tu app automáticamente si hay picos de tráfico." }
+                ]
+            },
+
+            // --- SEGURIDAD FÍSICA (SAFETY) ---
+            "Seguridad Física": {
+                color: "#f43f5e", 
+                def: "Safety. Características que previenen riesgos a la vida o medio ambiente. Crítico en software médico, automotriz e IA.",
+                tools: [
+                    { name: "ISO 26262 (Automotive)", url: "https://www.iso.org/standard/68383.html", tag: "Doc Técnica", desc: "Norma internacional específica para la seguridad funcional en sistemas eléctricos y electrónicos de automóviles." }
+                ]
+            },
+            "Restricción Operacional": { 
+                parent: "Seguridad Física", 
+                def: "Autolimitación de funciones ante incertidumbre. Ej: Brazo robótico reduce velocidad al detectar humanos.",
+                tools: [
+                    { name: "Análisis FMEA / AMFE", url: "https://es.wikipedia.org/wiki/An%C3%A1lisis_modal_de_fallos_y_efectos", tag: "Metodología", desc: "Análisis modal de fallos para mapear proactivamente qué hacer si un sensor falla." }
+                ]
+            },
+            "Seguridad ante Fallos (Fail Safe)": { 
+                parent: "Seguridad Física", 
+                def: "Capacidad de entrar a un estado seguro tras un error crítico. Ej: Ascensor activa frenos mecánicos si el software falla.",
+                tools: [
+                    { name: "Sistemas HIL (Simulación)", url: "https://en.wikipedia.org/wiki/Hardware-in-the-loop_simulation", tag: "Simulación", desc: "Hardware-in-the-Loop. Engaña al software haciéndole creer que maneja hardware real para probar respuestas a fallas críticas." }
+                ]
+            },
+            "Advertencia y Riesgos": { 
+                parent: "Seguridad Física", 
+                def: "Predicción de peligros y eficacia para alertar. Ej: Vehículo predice anomalía térmica en batería.",
+                tools: [
+                    { name: "Juego de Roles: Autobús Autónomo", url: "", tag: "Dinámica Docente", desc: "Actividad en aula: Dividir a los alumnos en QA, Arquitectos y Negocio para diseñar las políticas éticas y de 'Fail Safe' ante la pérdida de frenos de un IA-Bus." }
+                ]
+            }
+        };
+
+        const nodes = [];
+        const links = [];
+        const categories = [];
+
+        // Añadimos la categoría raíz
+        categories.push({ name: 'Principal' });
+
+        // 1. Nodo Central
+        nodes.push({
+            id: '0',
+            name: 'CALIDAD DEL\nPRODUCTO SOFTWARE',
+            symbolSize: 150,
+            itemStyle: { color: knowledgeBase["CALIDAD DEL PRODUCTO SOFTWARE"].color, borderColor: '#fff', borderWidth: 4, shadowBlur: 20, shadowColor: 'rgba(255,255,255,0.3)' },
+            originalStyle: { color: knowledgeBase["CALIDAD DEL PRODUCTO SOFTWARE"].color, borderColor: '#fff', shadowBlur: 20 },
+            label: { show: true, fontSize: 18, fontWeight: 'bold', color: '#fff' },
+            category: 0,
+            isGrey: false
+        });
+
+        // Generar categorías y subnodos dinámicamente
+        const mainCategories = [
+            "Adecuación Funcional", "Rendimiento", "Compatibilidad", 
+            "Cap. de Interacción", "Fiabilidad", "Seguridad", 
+            "Mantenibilidad", "Flexibilidad", "Seguridad Física"
+        ];
+
+        let nodeIdCounter = 1;
+
+        mainCategories.forEach((catName, idx) => {
+            const catId = String(nodeIdCounter++);
+            const catData = knowledgeBase[catName];
+            
+            categories.push({ name: catName });
+            
+            nodes.push({
+                id: catId,
+                name: catName.replace(' ', '\n'), 
+                symbolSize: 105,
+                category: idx + 1,
+                itemStyle: { color: catData.color, borderColor: '#fff', borderWidth: 2, shadowBlur: 10, shadowColor: catData.color },
+                originalStyle: { color: catData.color, borderColor: '#fff', shadowBlur: 10 },
+                label: { show: true, fontSize: 13, fontWeight: 'bold', color: '#fff', textBorderColor: 'rgba(0,0,0,0.5)', textBorderWidth: 2 },
+                isGrey: false
+            });
+
+            links.push({ source: '0', target: catId, lineStyle: { width: 3, curveness: 0.1, color: 'source' } });
+
+            // Subcaracterísticas
+            for (const [key, value] of Object.entries(knowledgeBase)) {
+                if (value.parent === catName) {
+                    const subId = String(nodeIdCounter++);
+                    
+                    nodes.push({
+                        id: subId,
+                        name: key.replace(' ', '\n'),
+                        symbolSize: 75,
+                        category: idx + 1,
+                        itemStyle: { color: catData.color, opacity: 0.85, borderColor: '#cbd5e1', borderWidth: 1 },
+                        originalStyle: { color: catData.color, borderColor: '#cbd5e1', shadowBlur: 0 },
+                        label: { show: true, fontSize: 11, color: '#e2e8f0', fontWeight: 'bold' },
+                        isGrey: false
+                    });
+
+                    links.push({ source: catId, target: subId, lineStyle: { width: 1.5, curveness: 0.2, color: 'source', type: 'dashed', opacity: 0.6 } });
+                }
+            }
+        });
+
+        const chartDom = document.getElementById('chart-container');
+        const myChart = echarts.init(chartDom);
+
+        const option = {
+            backgroundColor: 'transparent',
+            tooltip: {
+                show: true,
+                formatter: function (params) {
+                    if (params.dataType === 'node' && params.data && params.data.name) {
+                        let name = params.data.name.replace(/\n/g, ' ');
+                        return `<div class="font-bold text-sm text-slate-800">${name}</div><div class="text-xs text-blue-600 mt-1">Clic para ver doc y herramientas</div>`;
+                    }
+                    return '';
+                },
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                borderColor: '#e2e8f0',
+                textStyle: { color: '#1e293b' },
+                padding: [8, 12],
+                borderRadius: 8
+            },
+            legend: { show: false },
+            series: [{
+                type: 'graph',
+                layout: 'force', 
+                data: nodes,
+                links: links,
+                categories: categories,
+                roam: true, 
+                draggable: true,
+                label: { position: 'inside', formatter: '{b}' },
+                force: { repulsion: 450, edgeLength: [70, 130], gravity: 0.12 },
+                zoom: 0.55, 
+                animationDurationUpdate: 750
+            }]
+        };
+
+        myChart.setOption(option);
+
+        const modal = document.getElementById('info-modal');
+        const modalContent = document.getElementById('modal-content');
+        const btnClose = document.getElementById('close-modal');
+        const mTitle = document.getElementById('modal-title');
+        const mHeader = document.getElementById('modal-header');
+        const mDef = document.getElementById('modal-definition');
+        const mTools = document.getElementById('modal-tools');
+
+        // Clic Izquierdo -> Abrir Modal
+        myChart.on('click', function (params) {
+            if (params.dataType === 'node') {
+                const nodeName = params.data.name.replace(/\n/g, ' ');
+                openModal(nodeName);
+            }
+        });
+
+        // Prevenir Menú Contextual
+        document.getElementById('chart-container').addEventListener('contextmenu', e => e.preventDefault());
+
+        // Clic Derecho -> Toggle Gris
+        myChart.on('contextmenu', function (params) {
+            if (params.dataType === 'node') {
+                const node = nodes.find(n => n.id === params.data.id);
+                if (node) {
+                    node.isGrey = !node.isGrey;
+                    if (node.isGrey) {
+                        node.itemStyle.color = '#64748b'; 
+                        node.itemStyle.borderColor = '#94a3b8';
+                        node.itemStyle.shadowBlur = 0;
+                    } else {
+                        node.itemStyle.color = node.originalStyle.color;
+                        node.itemStyle.borderColor = node.originalStyle.borderColor;
+                        node.itemStyle.shadowBlur = node.originalStyle.shadowBlur;
+                    }
+                    myChart.setOption({ series: [{ data: nodes }] });
+                }
+            }
+        });
+
+        function openModal(nodeName) {
+            let data = null;
+            let realName = nodeName;
+            
+            for (const [key, value] of Object.entries(knowledgeBase)) {
+                if(key.toUpperCase() === nodeName.toUpperCase() || key === nodeName) {
+                    data = value;
+                    realName = key;
+                    break;
+                }
+            }
+
+            if(data) {
+                let isChild = false;
+                let parentData = null;
+                if(data.parent) {
+                    parentData = knowledgeBase[data.parent];
+                    isChild = true;
+                }
+
+                mTitle.textContent = realName;
+                mHeader.style.backgroundColor = isChild ? parentData.color : data.color;
+                mDef.innerHTML = `<strong class="text-slate-900">${realName}:</strong> ${data.def}`;
+
+                // Obtener tools específicas del ítem (si no tiene, hereda del padre en caso extremo)
+                const toolsData = data.tools ? data.tools : (isChild && parentData.tools ? parentData.tools : []);
+                mTools.innerHTML = ''; 
+                
+                if (toolsData.length > 0) {
+                    toolsData.forEach(tool => {
+                        const card = document.createElement('div');
+                        card.className = "p-4 bg-white rounded-lg border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all flex flex-col h-full";
+                        
+                        const linkIcon = `<svg class="w-3.5 h-3.5 ml-1 inline-block opacity-70 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>`;
+                        const titleHtml = tool.url 
+                            ? `<a href="${tool.url}" target="_blank" rel="noopener noreferrer" class="text-blue-700 hover:text-blue-900 font-bold hover:underline flex items-center group cursor-pointer">${tool.name} ${linkIcon}</a>`
+                            : `<span class="text-slate-800 font-bold">${tool.name}</span>`;
+
+                        // Estilo dinámico para los Tags
+                        let tagClass = "bg-slate-100 text-slate-500 border-slate-200";
+                        if(tool.tag && tool.tag.includes("IA")) tagClass = "bg-purple-100 text-purple-700 border-purple-200";
+                        if(tool.tag && tool.tag.includes("Doc")) tagClass = "bg-blue-100 text-blue-700 border-blue-200";
+
+                        const tagHtml = tool.tag ? `<span class="text-[10px] uppercase font-bold px-2.5 py-1 rounded-md ml-auto border ${tagClass}">${tool.tag}</span>` : '';
+
+                        card.innerHTML = `
+                            <div class="mb-2 flex items-start justify-between w-full">
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 mr-2 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                    ${titleHtml}
+                                </div>
+                                ${tagHtml}
+                            </div>
+                            <div class="text-sm text-slate-600 ml-7 leading-snug">${tool.desc}</div>
+                        `;
+                        mTools.appendChild(card);
+                    });
+                } else {
+                    mTools.innerHTML = '<p class="text-sm text-slate-500 italic col-span-2">No hay herramientas específicas registradas.</p>';
+                }
+
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.classList.remove('opacity-0');
+                    modalContent.classList.remove('scale-95');
+                    modal.classList.add('opacity-100');
+                    modalContent.classList.add('scale-100');
+                }, 10);
+            }
+        }
+
+        function closeModal() {
+            modal.classList.remove('opacity-100');
+            modalContent.classList.remove('scale-100');
+            modal.classList.add('opacity-0');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        btnClose.addEventListener('click', closeModal);
+        modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+        window.addEventListener('resize', () => myChart.resize());
+
+        document.getElementById('btn-export').addEventListener('click', function() {
+            let content = "REPORTE DE SELECCIÓN DE TESTING - ISO 25010:2023\n";
+            content += "=================================================\n\n";
+            content += "Este documento contiene los factores de calidad y características que NO han sido descartadas (marcadas en gris) durante la sesión de análisis.\n\n";
+
+            mainCategories.forEach((catName) => {
+                const catNode = nodes.find(n => n.name.replace(/\n/g, ' ') === catName);
+                
+                if (catNode && !catNode.isGrey) {
+                    content += `[ACTIVA] CATEGORÍA: ${catName.toUpperCase()}\n`;
+                    
+                    // Buscar hijos
+                    const children = nodes.filter(n => {
+                        const key = n.name.replace(/\n/g, ' ');
+                        return knowledgeBase[key] && knowledgeBase[key].parent === catName;
+                    });
+
+                    let hasActiveChildren = false;
+                    children.forEach(child => {
+                        if (!child.isGrey) {
+                            content += `    + ${child.name.replace(/\n/g, ' ')}\n`;
+                            hasActiveChildren = true;
+                        } else {
+                            content += `    - (Descartado) ${child.name.replace(/\n/g, ' ')}\n`;
+                        }
+                    });
+                    
+                    if(children.length === 0) content += "    (Sin subcaracterísticas mapeadas)\n";
+                    content += "\n";
+                }
+            });
+
+            // Generar y descargar el archivo
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Seleccion_Testing_ISO25010_2023.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: proyecto2026_nginx
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      - ./backend:/var/www/html:delegated
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - proyecto2026
+
+  app:
+    build:
+      context: ./docker/php
+    container_name: proyecto2026_app
+    restart: unless-stopped
+    volumes:
+      - ./backend:/var/www/html:delegated
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-proyecto2026}
+      DB_USERNAME: ${DB_USERNAME:-proyecto2026}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - proyecto2026
+
+  db:
+    image: mysql:8.0
+    container_name: proyecto2026_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-proyecto2026}
+      MYSQL_USER: ${DB_USERNAME:-proyecto2026}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - proyecto2026
+
+  frontend:
+    image: node:20-alpine
+    container_name: proyecto2026_frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app:delegated
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    command: >
+      sh -c "if [ -f package.json ]; then npm install && npm run dev -- --host; else
+      echo 'No hay package.json en ./frontend todavía — instalá tu framework ahí primero (ver frontend/README.md).'; fi"
+    networks:
+      - proyecto2026
+
+networks:
+  proyecto2026:
+
+volumes:
+  db_data:

@@ -1,0 +1,36 @@
+REPORTE DE SELECCIÓN DE TESTING - ISO 25010:2023
+=================================================
+
+Este documento contiene los factores de calidad y características que NO han sido descartadas (marcadas en gris) durante la sesión de análisis.
+
+[ACTIVA] CATEGORÍA: ADECUACIÓN FUNCIONAL
+    - (Descartado) Completitud
+    + Corrección
+    + Pertinencia
+
+[ACTIVA] CATEGORÍA: RENDIMIENTO
+    + Comport. en el tiempo
+    + Utilización de Recursos
+    + Capacidad
+
+[ACTIVA] CATEGORÍA: CAP. DE INTERACCIÓN
+    + Inteligibilidad
+    + Aprendizaje
+    + Operabilidad
+    + Protección a errores
+    - (Descartado) Inclusividad
+    + Asistencia y Autodescriptividad
+
+[ACTIVA] CATEGORÍA: SEGURIDAD
+    + Confidencialidad e Integridad
+    + No Repudio y Responsabilidad
+    + Autenticidad y Resistencia
+
+[ACTIVA] CATEGORÍA: MANTENIBILIDAD
+    + Modularidad y Cap. Reusado
+    + Analizabilidad y Cap. Modificar
+
+[ACTIVA] CATEGORÍA: FLEXIBILIDAD
+    + Adaptabilidad e Instalabilidad
+    - (Descartado) Escalabilidad
+

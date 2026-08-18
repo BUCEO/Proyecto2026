@@ -1,0 +1,34 @@
+# --- Entornos y credenciales ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Backend (Laravel / PHP) ---
+backend/vendor/
+backend/node_modules/
+backend/storage/*.key
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/storage/logs/*
+backend/bootstrap/cache/*
+backend/public/hot
+backend/public/storage
+backend/.phpunit.result.cache
+
+# --- Frontend (Node) ---
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+
+# --- Docker ---
+docker/mysql/data/
+
+# --- Editor / SO ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
